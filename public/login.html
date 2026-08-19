@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Puelo Neon — Ingresar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/styles.css">
+<script src="/config.js"></script>
+</head>
+<body>
+  <div class="login-wrap">
+    <div class="login-box">
+      <div style="font-family:var(--font-display);font-weight:700;font-size:22px;color:var(--green);margin-bottom:22px">PUELO NEON</div>
+      <label style="text-align:left">Email</label>
+      <input id="email" type="email" placeholder="tu@email.com">
+      <label style="text-align:left">Contraseña</label>
+      <input id="password" type="password" placeholder="••••••••">
+      <button class="btn" style="margin-top:18px" onclick="doLogin()">Ingresar</button>
+      <div id="msg" class="muted" style="margin-top:12px"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { signIn } from './js/auth.js';
+    import { supabase } from './js/supabaseClient.js';
+
+    // si ya hay sesión activa, ir directo al panel
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) window.location.href = '/admin/';
+    });
+
+    window.doLogin = async function(){
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const msg = document.getElementById('msg');
+      msg.textContent = 'Ingresando...';
+      const { error } = await signIn(email, password);
+      if (error) {
+        msg.textContent = 'Email o contraseña incorrectos.';
+        msg.style.color = 'var(--red)';
+        return;
+      }
+      window.location.href = '/admin/';
+    };
+    document.getElementById('password').addEventListener('keydown', e=>{
+      if(e.key==='Enter') window.doLogin();
+    });
+  </script>
+</body>
+</html>

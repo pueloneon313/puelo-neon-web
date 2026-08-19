@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Puelo Neon — Panel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/styles.css">
+<script src="/config.js"></script>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="brand-logo" id="brandLogo"></div>
+  <div class="sidebar-sub">gestión · panel admin</div>
+  <nav class="sidenav" id="sidenav">
+    <a class="navitem" data-tab="ajustes"><span class="ic">⚙</span><span>Ajustes</span></a>
+    <a class="navitem" data-tab="stock"><span class="ic">📦</span><span>Stock / Tienda</span></a>
+    <a class="navitem" data-tab="galeria"><span class="ic">📸</span><span>Galería</span></a>
+    <a class="navitem soon" title="Próximamente"><span class="ic">🧾</span><span>Presupuestos</span></a>
+    <a class="navitem soon" title="Próximamente"><span class="ic">💳</span><span>Ventas</span></a>
+    <a class="navitem soon" title="Próximamente"><span class="ic">👤</span><span>Clientes</span></a>
+    <a class="navitem soon" title="Próximamente"><span class="ic">💸</span><span>Gastos</span></a>
+    <a class="navitem soon" title="Próximamente"><span class="ic">🚚</span><span>Proveedores</span></a>
+    <a class="navitem soon" title="Próximamente"><span class="ic">🪧</span><span>Carteles pedidos</span></a>
+    <a class="navitem soon" title="Próximamente"><span class="ic">📈</span><span>Ganancias</span></a>
+  </nav>
+  <div class="sidebar-foot">
+    <div class="btn-row">
+      <a class="btn ghost sm" style="flex:1;text-align:center" href="/galeria.html" target="_blank">Ver Galería ↗</a>
+    </div>
+    <div class="btn-row" style="margin-top:8px">
+      <a class="btn ghost sm" style="flex:1;text-align:center" href="/tienda.html" target="_blank">Ver Tienda ↗</a>
+    </div>
+    <button class="btn danger sm" style="margin-top:8px;width:100%" id="logoutBtn">Cerrar sesión</button>
+  </div>
+</aside>
+
+<main class="content" id="app">
+  <div class="muted">Cargando...</div>
+</main>
+
+<div id="modalRoot"></div>
+<input type="file" id="fileInputHidden" accept="image/*" style="display:none">
+
+<script type="module" src="/admin/app.js"></script>
+</body>
+</html>

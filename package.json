@@ -1,0 +1,10 @@
+{
+  "name": "puelo-neon-web",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Puelo Neon — panel de administración, galería y tienda (Supabase + Vercel)",
+  "scripts": {
+    "build": "node scripts/build-config.js",
+    "dev": "node scripts/build-config.js && npx serve public"
+  }
+}
