@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Puelo Neon — Importar backup anterior</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/styles.css">
+<script src="/config.js"></script>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="brand-logo"></div>
+  <div class="sidebar-sub">gestión · panel admin</div>
+  <nav class="sidenav">
+    <a class="navitem" href="/admin/">← Volver al panel</a>
+  </nav>
+</aside>
+
+<main class="content">
+  <div class="page-head">
+    <div>
+      <h2 class="page-h">Importar backup anterior</h2>
+      <div class="page-sub">subí el archivo .json que exportaste con la app vieja (Ajustes → Exportar backup)</div>
+    </div>
+  </div>
+
+  <div class="card" style="max-width:640px">
+    <div class="muted" style="margin-bottom:14px">
+      Esto recupera clientes, proveedores, stock, presupuestos, gastos, carteles pedidos,
+      galería (con fotos y videos), categorías, reseñas y los datos del negocio —
+      incluyendo el logo y las fotos, que se suben de nuevo a este sitio.
+      <br><br>
+      No borra nada de lo que ya tengas cargado acá: solo agrega. Si ves algo duplicado
+      después (por ejemplo los productos de ejemplo que vienen precargados), lo podés
+      borrar a mano desde Stock.
+    </div>
+    <input type="file" id="fileInput" accept=".json,application/json">
+    <button class="btn" style="margin-top:14px" id="startBtn" disabled>Elegí un archivo primero</button>
+    <div id="log" style="margin-top:18px;font-family:var(--font-mono);font-size:12px;white-space:pre-wrap;max-height:400px;overflow-y:auto"></div>
+  </div>
+</main>
+
+<script type="module" src="/admin/importar.js"></script>
+</body>
+</html>
