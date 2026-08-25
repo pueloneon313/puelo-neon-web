@@ -1,4 +1,3 @@
-
 import { supabase } from '../js/supabaseClient.js';
 import { requireAuth, signOut } from '../js/auth.js';
 
