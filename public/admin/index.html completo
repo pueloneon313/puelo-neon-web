@@ -18,13 +18,13 @@
     <a class="navitem" data-tab="ajustes"><span class="ic">⚙</span><span>Ajustes</span></a>
     <a class="navitem" data-tab="stock"><span class="ic">📦</span><span>Stock / Tienda</span></a>
     <a class="navitem" data-tab="galeria"><span class="ic">📸</span><span>Galería</span></a>
-    <a class="navitem soon" title="Próximamente"><span class="ic">🧾</span><span>Presupuestos</span></a>
-    <a class="navitem soon" title="Próximamente"><span class="ic">💳</span><span>Ventas</span></a>
-    <a class="navitem soon" title="Próximamente"><span class="ic">👤</span><span>Clientes</span></a>
-    <a class="navitem soon" title="Próximamente"><span class="ic">💸</span><span>Gastos</span></a>
-    <a class="navitem soon" title="Próximamente"><span class="ic">🚚</span><span>Proveedores</span></a>
-    <a class="navitem soon" title="Próximamente"><span class="ic">🪧</span><span>Carteles pedidos</span></a>
-    <a class="navitem soon" title="Próximamente"><span class="ic">📈</span><span>Ganancias</span></a>
+    <a class="navitem" data-tab="presupuestos"><span class="ic">🧾</span><span>Presupuestos</span></a>
+    <a class="navitem" data-tab="ventas"><span class="ic">💳</span><span>Ventas</span></a>
+    <a class="navitem" data-tab="clientes"><span class="ic">👤</span><span>Clientes</span></a>
+    <a class="navitem" data-tab="gastos"><span class="ic">💸</span><span>Gastos</span></a>
+    <a class="navitem" data-tab="proveedores"><span class="ic">🚚</span><span>Proveedores</span></a>
+    <a class="navitem" data-tab="pedidos"><span class="ic">🪧</span><span>Carteles pedidos</span></a>
+    <a class="navitem" data-tab="ganancias"><span class="ic">📈</span><span>Ganancias</span></a>
   </nav>
   <div class="sidebar-foot">
     <div class="btn-row">
