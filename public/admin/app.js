@@ -61,6 +61,7 @@ function setTab(tab){
   document.querySelectorAll('.navitem[data-tab]').forEach(el=> el.classList.toggle('active', el.dataset.tab===tab));
   if (tab==='ajustes') renderAjustes();
   if (tab==='stock') renderStock();
+  if (tab==='tienda') renderTiendaAdmin();
   if (tab==='galeria') renderGaleriaAdmin();
   if (tab==='presupuestos') renderPresupuestos();
   if (tab==='ventas') renderVentas();
@@ -114,6 +115,16 @@ function renderAjustes(){
       <input id="s_neon" type="number" step="any" value="${b.neon_meter_price||0}">
       <label>Porcentaje de ganancia (%)</label>
       <input id="s_profit" type="number" step="any" value="${b.profit_percent||0}">
+      <div class="divider"></div>
+      <div class="item-title" style="margin-bottom:8px">🛠️ Estado de las páginas públicas</div>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:0">
+        <input type="checkbox" id="s_gallery_maint" style="width:auto" ${b.gallery_maintenance?'checked':''}>
+        <span>Galería en mantenimiento (los visitantes ven un cartel en vez del contenido)</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:10px">
+        <input type="checkbox" id="s_store_maint" style="width:auto" ${b.store_maintenance?'checked':''}>
+        <span>Tienda en mantenimiento</span>
+      </label>
       <button class="btn" style="margin-top:16px" onclick="window.__saveAjustes()">Guardar ajustes</button>
     </div>
   `;
@@ -140,6 +151,8 @@ window.__saveAjustes = async function(){
     hourly_rate: parseFloat(document.getElementById('s_hourly').value)||0,
     neon_meter_price: parseFloat(document.getElementById('s_neon').value)||0,
     profit_percent: parseFloat(document.getElementById('s_profit').value)||0,
+    gallery_maintenance: document.getElementById('s_gallery_maint').checked,
+    store_maintenance: document.getElementById('s_store_maint').checked,
     updated_at: new Date().toISOString()
   };
   const { error } = await supabase.from('business_settings').update(updates).eq('id', 1);
@@ -154,13 +167,17 @@ window.__saveAjustes = async function(){
 ===================================================================== */
 let materialsCache = [];
 async function renderStock(){
-  app.innerHTML = `${pageHeader('Stock / Tienda', 'cargando...')}`;
-  const { data, error } = await supabase.from('materials').select('*').order('name');
+  app.innerHTML = `${pageHeader('Stock', 'cargando...')}`;
+  const [{ data, error }, { data: prods }] = await Promise.all([
+    supabase.from('materials').select('*').order('name'),
+    supabase.from('products').select('material_id')
+  ]);
   if (error) { app.innerHTML = `<div class="empty">Error cargando stock: ${escapeHtml(error.message)}</div>`; return; }
   materialsCache = data || [];
+  const linkedIds = new Set((prods||[]).map(p=>p.material_id));
   const totalValue = materialsCache.reduce((a,m)=> a + Number(m.qty)*Number(m.cost), 0);
   app.innerHTML = `
-    ${pageHeader('Stock / Tienda', 'el costo es precio de compra. Activá "en tienda" para venderlo con carrito.', '+ Material', 'window.__openMaterialForm()')}
+    ${pageHeader('Stock', 'materiales usados para fabricar — el costo es precio de compra al proveedor', '+ Material', 'window.__openMaterialForm()')}
     <div class="stat" style="margin-bottom:16px;max-width:320px"><div class="label">Valor total del stock</div><div class="value">${money(totalValue)}</div></div>
     <div class="card">
       ${materialsCache.length ? materialsCache.map(m=>{
@@ -169,10 +186,10 @@ async function renderStock(){
         <div class="item-row">
           <div class="item-main">
             <div class="item-title">${escapeHtml(m.name)}</div>
-            <div class="item-sub">${m.qty} ${escapeHtml(m.unit)} · compra ${money(m.cost)}${m.for_sale?` · venta ${money(m.sale_price)}`:''}</div>
+            <div class="item-sub">${m.qty} ${escapeHtml(m.unit)} · compra ${money(m.cost)}</div>
           </div>
           <div style="display:flex;align-items:center;gap:8px">
-            ${m.for_sale ? '<span class="pill entregado">🛒 en tienda</span>' : ''}
+            ${linkedIds.has(m.id) ? '<span class="pill entregado">🛒 vinculado a un producto</span>' : ''}
             ${bajo ? '<span class="pill bajo">bajo</span>' : ''}
             <button class="tag-edit" onclick="window.__openMaterialForm('${m.id}')">editar</button>
             <button class="tag-del" onclick="window.__deleteMaterial('${m.id}')">borrar</button>
@@ -184,7 +201,6 @@ async function renderStock(){
 }
 window.__openMaterialForm = function(id){
   const m = id ? materialsCache.find(x=>x.id===id) : null;
-  window.__prodPhotoTemp = m ? m.product_photo_url || '' : '';
   openModal(`
     <button class="close-x" onclick="window.__closeModal()">✕</button>
     <div class="modal-title">${m?'Editar material':'Nuevo material'}</div>
@@ -195,28 +211,95 @@ window.__openMaterialForm = function(id){
       <div><label>Unidad</label><input id="f_unit" value="${m?escapeHtml(m.unit):''}" placeholder="unid / mts / kg"></div>
     </div>
     <div class="grid-2">
-      <div><label>Precio de compra</label><input id="f_cost" type="number" step="any" value="${m?m.cost:''}" oninput="window.__updateMarkups()"></div>
+      <div><label>Precio de compra</label><input id="f_cost" type="number" step="any" value="${m?m.cost:''}"></div>
       <div><label>Stock mínimo (alerta)</label><input id="f_min" type="number" step="any" value="${m?m.min_qty||'':''}"></div>
     </div>
-    <div class="divider"></div>
-    <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
-      <input type="checkbox" id="f_forsale" style="width:auto" ${m&&m.for_sale?'checked':''} onchange="window.__toggleForSale()">
-      <span>🛒 Ofrecer en la Tienda online</span>
-    </label>
-    <div id="forSaleFields" style="display:${m&&m.for_sale?'block':'none'}">
-      <label>Precio de venta</label>
-      <input id="f_saleprice" type="number" step="any" value="${m&&m.sale_price?m.sale_price:''}">
-      <div class="btn-row" id="markupBtns" style="margin:8px 0"></div>
-      <label>Descripción para la tienda</label>
-      <textarea id="f_prodesc">${m?escapeHtml(m.product_description||''):''}</textarea>
-      <label>Foto del producto</label>
-      <div id="prodPhotoThumb" class="photo-thumbs"></div>
-      <button class="btn ghost sm" onclick="document.getElementById('prodPhotoInput').click()">+ elegir foto</button>
-      <input type="file" id="prodPhotoInput" accept="image/*" style="display:none">
-    </div>
+    <div class="muted" style="margin-top:10px">Para vender este material en la Tienda, guardalo acá primero y después andá a la sección Tienda → "+ Nuevo producto".</div>
     <button class="btn" style="margin-top:16px" onclick="window.__saveMaterial('${id||''}')">Guardar material</button>
   `);
-  window.__updateMarkups();
+};
+window.__saveMaterial = async function(id){
+  const payload = {
+    name: document.getElementById('f_name').value.trim(),
+    qty: parseFloat(document.getElementById('f_qty').value)||0,
+    unit: document.getElementById('f_unit').value.trim()||'unid',
+    cost: parseFloat(document.getElementById('f_cost').value)||0,
+    min_qty: parseFloat(document.getElementById('f_min').value)||0
+  };
+  if (!payload.name) { toast('Poné un nombre', true); return; }
+  const { error } = id
+    ? await supabase.from('materials').update(payload).eq('id', id)
+    : await supabase.from('materials').insert(payload);
+  if (error) { toast('Error: ' + error.message, true); return; }
+  closeModal(); toast('Material guardado'); renderStock();
+};
+window.__deleteMaterial = async function(id){
+  if (!confirm('¿Borrar este material? Si tiene un producto vinculado en la Tienda, también se va a borrar.')) return;
+  const { error } = await supabase.from('materials').delete().eq('id', id);
+  if (error) { toast('Error: ' + error.message, true); return; }
+  renderStock();
+};
+
+/* =====================================================================
+   TIENDA (productos vinculados a materiales del Stock, por separado)
+===================================================================== */
+let productsCache = [];
+async function renderTiendaAdmin(){
+  app.innerHTML = `${pageHeader('Tienda', 'cargando...')}`;
+  const [{ data: prods, error }, { data: mats }] = await Promise.all([
+    supabase.from('products').select('*, materials(name, qty, unit, cost)').order('name'),
+    supabase.from('materials').select('id, name, qty, unit, cost').order('name')
+  ]);
+  if (error) { app.innerHTML = `<div class="empty">Error cargando la tienda: ${escapeHtml(error.message)}</div>`; return; }
+  productsCache = prods || [];
+  materialsCache = mats || [];
+  app.innerHTML = `
+    ${pageHeader('Tienda', 'productos vinculados a un material del Stock, con su propio precio de venta', '+ Nuevo producto', 'window.__openProductForm()')}
+    <div class="product-grid">
+      ${productsCache.length ? productsCache.map(p=>{
+        const mat = p.materials;
+        const photo = p.photo_url ? `<img class="photo" src="${p.photo_url}">` : `<div class="photo placeholder">🛒</div>`;
+        return `
+        <div class="product-card" style="cursor:pointer" onclick="window.__openProductForm('${p.id}')">
+          ${photo}
+          <div class="pinfo">
+            <div class="pname">${escapeHtml(p.name)}</div>
+            <div class="pprice">${money(p.price)}</div>
+            <div class="pstock">${mat ? `${mat.qty} ${escapeHtml(mat.unit)} disponibles (${escapeHtml(mat.name)})` : 'material borrado'}</div>
+          </div>
+        </div>`;
+      }).join('') : `<div class="empty"><span class="ic">🛒</span>Todavía no hay productos en la tienda.<br>Tocá "+ Nuevo producto" y elegí a qué material del Stock lo vinculás.</div>`}
+    </div>
+  `;
+}
+window.__openProductForm = function(id){
+  const p = id ? productsCache.find(x=>x.id===id) : null;
+  window.__prodPhotoTemp = p ? p.photo_url || '' : '';
+  const matOpts = materialsCache.map(m=>`<option value="${m.id}" ${p&&p.material_id===m.id?'selected':''}>${escapeHtml(m.name)} (${m.qty} ${escapeHtml(m.unit)} disp.)</option>`).join('');
+  openModal(`
+    <button class="close-x" onclick="window.__closeModal()">✕</button>
+    <div class="modal-title">${p?'Editar producto':'Nuevo producto de la Tienda'}</div>
+    <label>Material vinculado (de Stock)</label>
+    <select id="f_material" onchange="window.__updateProductMarkups()">
+      <option value="">— seleccionar —</option>
+      ${matOpts}
+    </select>
+    <div class="muted" style="margin:-2px 0 8px">El stock disponible se muestra automáticamente desde ese material.</div>
+    <label>Nombre del producto (puede ser distinto al del material)</label>
+    <input id="f_pname" value="${p?escapeHtml(p.name):''}" placeholder="Ej: Tira LED blanca 1 metro">
+    <label>Precio de venta</label>
+    <input id="f_price" type="number" step="any" value="${p?p.price:''}">
+    <div class="btn-row" id="prodMarkupBtns" style="margin:8px 0"></div>
+    <label>Descripción para la tienda</label>
+    <textarea id="f_pdesc">${p?escapeHtml(p.description||''):''}</textarea>
+    <label>Foto del producto</label>
+    <div id="prodPhotoThumb" class="photo-thumbs"></div>
+    <button class="btn ghost sm" onclick="document.getElementById('prodPhotoInput').click()">+ elegir foto</button>
+    <input type="file" id="prodPhotoInput" accept="image/*" style="display:none">
+    <button class="btn" style="margin-top:16px" onclick="window.__saveProduct('${id||''}')">Guardar producto</button>
+    ${p ? `<button class="btn danger" style="margin-top:10px" onclick="window.__deleteProduct('${p.id}')">Eliminar</button>` : ''}
+  `);
+  window.__updateProductMarkups();
   renderProdPhotoThumb();
   document.getElementById('prodPhotoInput').addEventListener('change', async e=>{
     const file = e.target.files[0];
@@ -231,45 +314,45 @@ function renderProdPhotoThumb(){
   const el = document.getElementById('prodPhotoThumb');
   if (!el) return;
   el.innerHTML = window.__prodPhotoTemp
-    ? `<div class="photo-thumb"><img src="${window.__prodPhotoTemp}"><button class="rm" onclick="window.__prodPhotoTemp='';window.__updateMarkups();document.getElementById('prodPhotoThumb').innerHTML='<div class=\\'muted\\'>Sin foto.</div>'">✕</button></div>`
+    ? `<div class="photo-thumb"><img src="${window.__prodPhotoTemp}"><button class="rm" onclick="window.__prodPhotoTemp='';document.getElementById('prodPhotoThumb').innerHTML='<div class=\\'muted\\'>Sin foto.</div>'">✕</button></div>`
     : `<div class="muted">Sin foto todavía.</div>`;
 }
-window.__toggleForSale = function(){
-  document.getElementById('forSaleFields').style.display = document.getElementById('f_forsale').checked ? 'block' : 'none';
-};
-window.__updateMarkups = function(){
-  const el = document.getElementById('markupBtns');
-  if (!el) return;
-  const cost = parseFloat(document.getElementById('f_cost').value)||0;
+window.__updateProductMarkups = function(){
+  const el = document.getElementById('prodMarkupBtns');
+  const matSel = document.getElementById('f_material');
+  if (!el || !matSel) return;
+  const mat = materialsCache.find(m=>m.id===matSel.value);
+  const cost = mat ? Number(mat.cost)||0 : 0;
+  if (!mat){ el.innerHTML = ''; return; }
   el.innerHTML = [20,30,50,100].map(pct=>{
     const price = Math.round(cost*(1+pct/100));
-    return `<button type="button" class="btn ghost sm" style="width:auto;flex:1" onclick="document.getElementById('f_saleprice').value=${price}">+${pct}% (${money(price)})</button>`;
+    return `<button type="button" class="btn ghost sm" style="width:auto;flex:1" onclick="document.getElementById('f_price').value=${price}">+${pct}% (${money(price)})</button>`;
   }).join('');
+  const nameInput = document.getElementById('f_pname');
+  if (nameInput && !nameInput.value) nameInput.value = mat.name;
 };
-window.__saveMaterial = async function(id){
+window.__saveProduct = async function(id){
+  const materialId = document.getElementById('f_material').value;
   const payload = {
-    name: document.getElementById('f_name').value.trim(),
-    qty: parseFloat(document.getElementById('f_qty').value)||0,
-    unit: document.getElementById('f_unit').value.trim()||'unid',
-    cost: parseFloat(document.getElementById('f_cost').value)||0,
-    min_qty: parseFloat(document.getElementById('f_min').value)||0,
-    for_sale: document.getElementById('f_forsale').checked,
-    sale_price: parseFloat(document.getElementById('f_saleprice').value)||0,
-    product_description: document.getElementById('f_prodesc').value.trim(),
-    product_photo_url: window.__prodPhotoTemp || ''
+    material_id: materialId || null,
+    name: document.getElementById('f_pname').value.trim(),
+    price: parseFloat(document.getElementById('f_price').value)||0,
+    description: document.getElementById('f_pdesc').value.trim(),
+    photo_url: window.__prodPhotoTemp || ''
   };
+  if (!materialId) { toast('Elegí a qué material del Stock corresponde', true); return; }
   if (!payload.name) { toast('Poné un nombre', true); return; }
   const { error } = id
-    ? await supabase.from('materials').update(payload).eq('id', id)
-    : await supabase.from('materials').insert(payload);
+    ? await supabase.from('products').update(payload).eq('id', id)
+    : await supabase.from('products').insert(payload);
   if (error) { toast('Error: ' + error.message, true); return; }
-  closeModal(); toast('Material guardado'); renderStock();
+  closeModal(); toast('Producto guardado'); renderTiendaAdmin();
 };
-window.__deleteMaterial = async function(id){
-  if (!confirm('¿Borrar este material?')) return;
-  const { error } = await supabase.from('materials').delete().eq('id', id);
+window.__deleteProduct = async function(id){
+  if (!confirm('¿Borrar este producto de la Tienda? (el material en Stock no se toca)')) return;
+  const { error } = await supabase.from('products').delete().eq('id', id);
   if (error) { toast('Error: ' + error.message, true); return; }
-  renderStock();
+  closeModal(); renderTiendaAdmin();
 };
 
 /* =====================================================================
