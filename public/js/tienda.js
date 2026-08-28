@@ -12,6 +12,7 @@ function escapeHtml(str){
 }
 function money(n){ return '$' + Number(n||0).toLocaleString('es-AR', { maximumFractionDigits:0 }); }
 function openModal(html){
+  history.pushState({ modal:true }, '');
   modalRoot.innerHTML = `<div class="overlay" onclick="if(event.target===this) window.__closeModal()"><div class="modal">${html}</div></div>`;
 }
 function closeModal(){ modalRoot.innerHTML = ''; }
@@ -24,8 +25,28 @@ async function init(){
     supabase.from('store_products').select('*').order('name')
   ]);
   business = biz || {};
+  if (business.store_maintenance) { renderMaintenance(); return; }
   products = prods || [];
   render();
+  window.addEventListener('popstate', ()=>{
+    if (modalRoot.innerHTML) closeModal();
+  });
+}
+function renderMaintenance(){
+  const logoBlock = business.logo_url ? `<img src="${business.logo_url}" alt="${escapeHtml(business.name||'Puelo Neon')}">` : '';
+  const icons = buildContactIcons(business);
+  app.innerHTML = `
+    <div class="public-header">
+      ${logoBlock}
+      <h1>Tienda</h1>
+      ${contactIconsHtml(icons, business.icon_style)}
+    </div>
+    <div class="empty" style="max-width:480px;margin:40px auto">
+      <span class="ic">🛠️</span>
+      <div style="font-family:var(--font-display);font-size:18px;color:var(--text);margin-bottom:8px">En mantenimiento</div>
+      Estamos actualizando la tienda. Volvé a visitarnos pronto, o escribinos por cualquiera de los medios de arriba.
+    </div>
+  `;
 }
 function render(){
   const logoBlock = business.logo_url ? `<img src="${business.logo_url}" alt="${escapeHtml(business.name||'Puelo Neon')}">` : '';
