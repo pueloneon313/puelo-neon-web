@@ -12,6 +12,7 @@ function escapeHtml(str){
   return String(str||'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 }
 function openModal(html){
+  history.pushState({ modal:true, cat: activeCategory }, '');
   modalRoot.innerHTML = `<div class="overlay" onclick="if(event.target===this) window.__closeModal()"><div class="modal">${html}</div></div>`;
 }
 function closeModal(){ modalRoot.innerHTML = ''; }
@@ -35,9 +36,31 @@ async function init(){
     supabase.from('reviews').select('*').order('created_at', { ascending:false })
   ]);
   business = biz || {};
+  if (business.gallery_maintenance) { renderMaintenance(); return; }
   window.__reviews = revs || [];
   groupByCategory(items || []);
   render();
+  window.addEventListener('popstate', e=>{
+    if (modalRoot.innerHTML) { closeModal(); return; }
+    activeCategory = (e.state && e.state.cat) || null;
+    render();
+  });
+}
+function renderMaintenance(){
+  const logoBlock = business.logo_url ? `<img src="${business.logo_url}" alt="${escapeHtml(business.name||'Puelo Neon')}">` : '';
+  const icons = buildContactIcons(business);
+  app.innerHTML = `
+    <div class="public-header">
+      ${logoBlock}
+      <h1>Nuestros trabajos</h1>
+      ${contactIconsHtml(icons, business.icon_style)}
+    </div>
+    <div class="empty" style="max-width:480px;margin:40px auto">
+      <span class="ic">🛠️</span>
+      <div style="font-family:var(--font-display);font-size:18px;color:var(--text);margin-bottom:8px">En mantenimiento</div>
+      Estamos actualizando la galería. Volvé a visitarnos pronto, o escribinos por cualquiera de los medios de arriba.
+    </div>
+  `;
 }
 function groupByCategory(items){
   const byCat = {};
@@ -123,10 +146,11 @@ function render(){
 }
 window.__openCategory = function(i){
   activeCategory = groups[i] ? groups[i].category : null;
+  history.pushState({ cat: activeCategory }, '');
   render();
   window.scrollTo({ top:0, behavior:'smooth' });
 };
-window.__goBack = function(){ activeCategory = null; render(); window.scrollTo({top:0, behavior:'smooth'}); };
+window.__goBack = function(){ history.back(); };
 window.__openLightbox = function(kind, id){
   const g = groups.find(gr=>gr.items.some(it=>it.id===id && it.kind===kind));
   const it = g && g.items.find(x=>x.id===id && x.kind===kind);
