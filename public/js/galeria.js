@@ -15,7 +15,11 @@ function openModal(html){
   history.pushState({ modal:true, cat: activeCategory }, '');
   modalRoot.innerHTML = `<div class="overlay" onclick="if(event.target===this) window.__closeModal()"><div class="modal">${html}</div></div>`;
 }
-function closeModal(){ modalRoot.innerHTML = ''; }
+function clearModalDom(){ modalRoot.innerHTML = ''; }
+function closeModal(){
+  if (history.state && history.state.modal) { history.back(); }
+  else { clearModalDom(); }
+}
 window.__closeModal = closeModal;
 document.addEventListener('keydown', e=>{ if (e.key==='Escape') closeModal(); });
 
@@ -32,29 +36,54 @@ function mediaBlockHtml(item){
 async function init(){
   const [{ data: biz }, { data: items }, { data: revs }] = await Promise.all([
     supabase.from('business_settings').select('*').eq('id',1).single(),
-    supabase.from('public_gallery').select('*').order('item_date', { ascending:false }),
+    supabase.from('public_gallery').select('*').order('sort_order').order('item_date', { ascending:false }),
     supabase.from('reviews').select('*').order('created_at', { ascending:false })
   ]);
   business = biz || {};
   if (business.gallery_maintenance) { renderMaintenance(); return; }
   window.__reviews = revs || [];
   groupByCategory(items || []);
+  renderHeader();
   render();
+  startHeroCarousel();
   window.addEventListener('popstate', e=>{
-    if (modalRoot.innerHTML) { closeModal(); return; }
+    clearModalDom();
     activeCategory = (e.state && e.state.cat) || null;
     render();
   });
 }
-function renderMaintenance(){
+function renderHeader(){
   const logoBlock = business.logo_url ? `<img src="${business.logo_url}" alt="${escapeHtml(business.name||'Puelo Neon')}">` : '';
   const icons = buildContactIcons(business);
+  document.getElementById('publicHeader').innerHTML = `
+    ${logoBlock}
+    <h1>Nuestros trabajos</h1>
+    ${contactIconsHtml(icons, business.icon_style)}
+  `;
+}
+let _heroInterval = null;
+function startHeroCarousel(){
+  const all = [];
+  groups.forEach(g=> g.items.forEach(it=> { if (it.photo_urls && it.photo_urls[0]) all.push(it.photo_urls[0]); }));
+  for (let i=all.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [all[i],all[j]]=[all[j],all[i]]; }
+  const picked = all.slice(0, 8);
+  const heroBg = document.getElementById('heroBg');
+  if (!picked.length) { heroBg.innerHTML = ''; return; }
+  heroBg.innerHTML = picked.map((src,i)=>`<img src="${src}" class="${i===0?'show':''}">`).join('');
+  if (picked.length < 2) return;
+  let idx = 0;
+  if (_heroInterval) clearInterval(_heroInterval);
+  _heroInterval = setInterval(()=>{
+    const imgs = heroBg.querySelectorAll('img');
+    if (!imgs.length) return;
+    imgs[idx].classList.remove('show');
+    idx = (idx+1) % imgs.length;
+    imgs[idx].classList.add('show');
+  }, 3500);
+}
+function renderMaintenance(){
+  renderHeader();
   app.innerHTML = `
-    <div class="public-header">
-      ${logoBlock}
-      <h1>Nuestros trabajos</h1>
-      ${contactIconsHtml(icons, business.icon_style)}
-    </div>
     <div class="empty" style="max-width:480px;margin:40px auto">
       <span class="ic">🛠️</span>
       <div style="font-family:var(--font-display);font-size:18px;color:var(--text);margin-bottom:8px">En mantenimiento</div>
@@ -71,8 +100,6 @@ function groupByCategory(items){
   groups = Object.keys(byCat).map(cat=>({ category: cat, items: byCat[cat] }));
 }
 function render(){
-  const logoBlock = business.logo_url ? `<img src="${business.logo_url}" alt="${escapeHtml(business.name||'Puelo Neon')}">` : '';
-  const icons = buildContactIcons(business);
   const reviews = window.__reviews || [];
 
   let bodyHtml;
@@ -135,11 +162,6 @@ function render(){
   `;
 
   app.innerHTML = `
-    <div class="public-header">
-      ${logoBlock}
-      <h1>Nuestros trabajos</h1>
-      ${contactIconsHtml(icons, business.icon_style)}
-    </div>
     ${bodyHtml}
     ${reviewsHtml}
   `;
