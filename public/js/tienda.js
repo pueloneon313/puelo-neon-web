@@ -15,7 +15,11 @@ function openModal(html){
   history.pushState({ modal:true }, '');
   modalRoot.innerHTML = `<div class="overlay" onclick="if(event.target===this) window.__closeModal()"><div class="modal">${html}</div></div>`;
 }
-function closeModal(){ modalRoot.innerHTML = ''; }
+function clearModalDom(){ modalRoot.innerHTML = ''; }
+function closeModal(){
+  if (history.state && history.state.modal) { history.back(); }
+  else { clearModalDom(); }
+}
 window.__closeModal = closeModal;
 document.addEventListener('keydown', e=>{ if (e.key==='Escape') closeModal(); });
 
@@ -28,9 +32,7 @@ async function init(){
   if (business.store_maintenance) { renderMaintenance(); return; }
   products = prods || [];
   render();
-  window.addEventListener('popstate', ()=>{
-    if (modalRoot.innerHTML) closeModal();
-  });
+  window.addEventListener('popstate', ()=>{ clearModalDom(); });
 }
 function renderMaintenance(){
   const logoBlock = business.logo_url ? `<img src="${business.logo_url}" alt="${escapeHtml(business.name||'Puelo Neon')}">` : '';
