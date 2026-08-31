@@ -364,7 +364,7 @@ let reviewsCache = [];
 async function renderGaleriaAdmin(){
   app.innerHTML = `${pageHeader('Galería', 'cargando...')}`;
   const [{ data: items }, { data: cats }, { data: revs }] = await Promise.all([
-    supabase.from('gallery_items').select('*').order('item_date', { ascending:false }),
+    supabase.from('gallery_items').select('*').order('sort_order').order('item_date', { ascending:false }),
     supabase.from('gallery_categories').select('*').order('sort_order'),
     supabase.from('reviews').select('*').order('created_at', { ascending:false })
   ]);
@@ -373,23 +373,33 @@ async function renderGaleriaAdmin(){
   reviewsCache = revs || [];
   app.innerHTML = `
     ${pageHeader('Galería', 'fotos y videos para mostrarle a tus clientes', '+ Agregar foto', 'window.__openGalleryForm()')}
-    <div class="btn-row" style="margin:-6px 0 16px;max-width:480px">
+    <div class="btn-row" style="margin:-6px 0 12px;max-width:480px">
       <button class="btn ghost" style="width:auto;flex:1" onclick="window.__openCategoryManager()">🏷️ Categorías</button>
       <a class="btn secondary" style="width:auto;flex:1;text-align:center" href="/galeria.html" target="_blank">🖥️ Ver página pública</a>
     </div>
-    <div class="card">
-      ${galleryCache.length ? galleryCache.map(g=>`
-        <div class="item-row">
-          <div class="item-main">
-            <div class="item-title">${escapeHtml(g.description||'Trabajo')}</div>
-            <div class="item-sub">${g.item_date||''} · ${escapeHtml(g.category||'Otros')} · ${(g.photo_urls||[]).length} foto(s)</div>
+    ${galleryCache.length ? `<div class="muted" style="margin-bottom:12px">💡 Arrastrá una foto para cambiar el orden en que se muestran.</div>` : ''}
+    <div class="card" id="galleryList">
+      ${galleryCache.length ? galleryCache.map((g,i)=>{
+        const thumb = (g.photo_urls&&g.photo_urls[0]) ? `<img src="${g.photo_urls[0]}" style="width:44px;height:44px;object-fit:cover;border-radius:8px;margin-right:10px;flex-shrink:0">` : '';
+        return `
+        <div class="item-row" draggable="true" style="cursor:grab"
+             ondragstart="window.__galDragStart(event,${i})"
+             ondragend="window.__galDragEnd(event)"
+             ondragover="event.preventDefault()"
+             ondrop="window.__galDrop(event,${i})">
+          <div class="item-main" style="flex-direction:row;align-items:center;display:flex">
+            ${thumb}
+            <div>
+              <div class="item-title">${escapeHtml(g.description||'Trabajo')}</div>
+              <div class="item-sub">${g.item_date||''} · ${escapeHtml(g.category||'Otros')} · ${(g.photo_urls||[]).length} foto(s)</div>
+            </div>
           </div>
           <div style="display:flex;align-items:center;gap:8px">
             <button class="tag-edit" onclick="window.__openGalleryForm('${g.id}')">editar</button>
             <button class="tag-del" onclick="window.__deleteGalleryItem('${g.id}')">borrar</button>
           </div>
-        </div>
-      `).join('') : `<div class="empty"><span class="ic">📸</span>Todavía no hay fotos cargadas acá (revisá también Carteles pedidos entregados, cuando esa sección esté migrada).</div>`}
+        </div>`;
+      }).join('') : `<div class="empty"><span class="ic">📸</span>Todavía no hay fotos cargadas acá (revisá también Carteles pedidos entregados, cuando esa sección esté migrada).</div>`}
     </div>
 
     <div class="card" style="margin-top:20px">
@@ -406,6 +416,24 @@ async function renderGaleriaAdmin(){
     </div>
   `;
 }
+let _galDragIndex = null;
+window.__galDragStart = function(e, idx){
+  _galDragIndex = idx;
+  e.currentTarget.style.opacity = '.4';
+};
+window.__galDragEnd = function(e){
+  e.currentTarget.style.opacity = '1';
+};
+window.__galDrop = async function(e, idx){
+  e.preventDefault();
+  if (_galDragIndex === null || _galDragIndex === idx) return;
+  const moved = galleryCache.splice(_galDragIndex, 1)[0];
+  galleryCache.splice(idx, 0, moved);
+  _galDragIndex = null;
+  await Promise.all(galleryCache.map((g,i)=> supabase.from('gallery_items').update({ sort_order: i }).eq('id', g.id)));
+  toast('Orden actualizado');
+  renderGaleriaAdmin();
+};
 window.__openCategoryManager = function(){
   openModal(`
     <button class="close-x" onclick="window.__closeModal()">✕</button>
