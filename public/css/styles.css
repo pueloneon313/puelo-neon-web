@@ -104,7 +104,12 @@ textarea{resize:vertical;min-height:60px;}
 
 /* páginas públicas (galería / tienda) */
 .public-body{padding:44px 24px 90px;max-width:1160px;margin:0 auto;}
-.public-header{display:flex;flex-direction:column;align-items:center;gap:8px;margin-bottom:20px;text-align:center;}
+.hero-section{position:relative;overflow:hidden;padding:60px 24px 40px;min-height:280px;display:flex;align-items:center;justify-content:center;}
+.hero-bg{position:absolute;inset:0;z-index:0;}
+.hero-bg img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 1.8s ease;}
+.hero-bg img.show{opacity:1;}
+.hero-overlay{position:absolute;inset:0;z-index:1;background:linear-gradient(180deg, rgba(10,10,10,.55) 0%, rgba(10,10,10,.75) 60%, var(--bg) 100%);}
+.public-header{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:8px;margin-bottom:0;text-align:center;}
 .public-header img{max-width:190px;filter:drop-shadow(0 0 10px rgba(57,255,20,.35));}
 .public-header h1{font-family:var(--font-display);font-size:22px;margin:6px 0 0;}
 .contact-icons{display:flex;justify-content:center;gap:14px;margin-top:16px;flex-wrap:wrap;}
