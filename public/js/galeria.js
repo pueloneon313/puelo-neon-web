@@ -11,6 +11,30 @@ let reviewRating = 0;
 function escapeHtml(str){
   return String(str||'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 }
+
+/* --- inclinación fija por foto, siempre la misma para el mismo id (no "salta" al re-renderizar) --- */
+function tiltForId(id){
+  let h = 0;
+  const s = String(id||'');
+  for (let i=0;i<s.length;i++) h = (h*31 + s.charCodeAt(i)) % 1000;
+  return (((h/1000)*7) - 3.5).toFixed(2); // entre -3.5° y 3.5°
+}
+
+/* --- las tarjetas "entran" con movimiento a medida que aparecen en pantalla al hacer scroll --- */
+let _cardObserver = null;
+function observeCards(){
+  if (_cardObserver) _cardObserver.disconnect();
+  _cardObserver = new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{
+      if (e.isIntersecting){
+        e.target.classList.add('in-view');
+        _cardObserver.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+  document.querySelectorAll('.gallery-card, .category-tile').forEach(el=> _cardObserver.observe(el));
+}
+
 function openModal(html){
   history.pushState({ modal:true, cat: activeCategory }, '');
   modalRoot.innerHTML = `<div class="overlay" onclick="if(event.target===this) window.__closeModal()"><div class="modal">${html}</div></div>`;
@@ -23,8 +47,14 @@ function closeModal(){
 window.__closeModal = closeModal;
 document.addEventListener('keydown', e=>{ if (e.key==='Escape') closeModal(); });
 
+/* visor: primera foto como "portada" con la descripción superpuesta, el resto abajo */
 function mediaBlockHtml(item){
-  let html = (item.photo_urls||[]).map(src=>`<img class="lightbox-img" src="${src}">`).join('');
+  const photos = item.photo_urls || [];
+  let html = '';
+  if (photos.length){
+    html += `<div class="lb-hero"><img src="${photos[0]}"><div class="lb-caption">${escapeHtml(item.description||'Trabajo realizado')}</div></div>`;
+    html += photos.slice(1).map(src=>`<img class="lightbox-img" src="${src}">`).join('');
+  }
   (item.video_urls||[]).forEach(v=>{
     html += v.type==='link'
       ? `<a class="btn secondary" style="margin-bottom:12px" href="${escapeHtml(v.src)}" target="_blank">▶ Ver video</a>`
@@ -33,25 +63,6 @@ function mediaBlockHtml(item){
   return html;
 }
 
-async function init(){
-  const [{ data: biz }, { data: items }, { data: revs }] = await Promise.all([
-    supabase.from('business_settings').select('*').eq('id',1).single(),
-    supabase.from('public_gallery').select('*').order('sort_order').order('item_date', { ascending:false }),
-    supabase.from('reviews').select('*').order('created_at', { ascending:false })
-  ]);
-  business = biz || {};
-  if (business.gallery_maintenance) { renderMaintenance(); return; }
-  window.__reviews = revs || [];
-  groupByCategory(items || []);
-  renderHeader();
-  render();
-  startHeroCarousel();
-  window.addEventListener('popstate', e=>{
-    clearModalDom();
-    activeCategory = (e.state && e.state.cat) || null;
-    render();
-  });
-}
 function renderHeader(){
   const logoBlock = business.logo_url ? `<img src="${business.logo_url}" alt="${escapeHtml(business.name||'Puelo Neon')}">` : '';
   const icons = buildContactIcons(business);
@@ -91,6 +102,26 @@ function renderMaintenance(){
     </div>
   `;
 }
+
+async function init(){
+  const [{ data: biz }, { data: items }, { data: revs }] = await Promise.all([
+    supabase.from('business_settings').select('*').eq('id',1).single(),
+    supabase.from('public_gallery').select('*').order('sort_order').order('item_date', { ascending:false }),
+    supabase.from('reviews').select('*').order('created_at', { ascending:false })
+  ]);
+  business = biz || {};
+  if (business.gallery_maintenance) { renderMaintenance(); return; }
+  window.__reviews = revs || [];
+  groupByCategory(items || []);
+  renderHeader();
+  render();
+  startHeroCarousel();
+  window.addEventListener('popstate', e=>{
+    clearModalDom();
+    activeCategory = (e.state && e.state.cat) || null;
+    render();
+  });
+}
 function groupByCategory(items){
   const byCat = {};
   items.forEach(it=>{
@@ -111,7 +142,7 @@ function render(){
       <h2 class="category-detail-title">${escapeHtml(activeCategory)}</h2>
       <div class="gallery-grid">
         ${items.map(it=>`
-          <div class="gallery-card" onclick="window.__openLightbox('${it.kind}','${it.id}')">
+          <div class="gallery-card" style="--tilt:${tiltForId(it.id)}deg" onclick="window.__openLightbox('${it.kind}','${it.id}')">
             <img class="thumb" src="${it.photo_urls[0]}">
             ${it.photo_urls.length>1 ? `<span class="badge">+${it.photo_urls.length-1}</span>` : ''}
             <div class="info"><div class="item-title">${escapeHtml(it.description||'Trabajo realizado')}</div></div>
@@ -122,7 +153,7 @@ function render(){
     bodyHtml = groups.length ? `
       <div class="category-grid">
         ${groups.map((g,i)=>`
-          <div class="category-tile" onclick="window.__openCategory(${i})">
+          <div class="category-tile" style="--tilt:${tiltForId(g.category)}deg" onclick="window.__openCategory(${i})">
             <div class="category-tile-imgs">
               <img src="${g.items[0].photo_urls[0]}">
               ${g.items[1] ? `<img src="${g.items[1].photo_urls[0]}">` : ''}
@@ -165,6 +196,7 @@ function render(){
     ${bodyHtml}
     ${reviewsHtml}
   `;
+  observeCards();
 }
 window.__openCategory = function(i){
   activeCategory = groups[i] ? groups[i].category : null;
@@ -179,7 +211,6 @@ window.__openLightbox = function(kind, id){
   if (!it) return;
   openModal(`
     <button class="close-x" onclick="window.__closeModal()">✕</button>
-    <div class="modal-title">${escapeHtml(it.description||'Trabajo realizado')}</div>
     ${mediaBlockHtml(it)}
   `);
 };
